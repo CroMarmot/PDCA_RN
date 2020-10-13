@@ -20,7 +20,7 @@ const Item = ({item, onSwitch}) => {
         trackColor={{false: '#767577', true: '#81b0ff'}}
         thumbColor={'#f4f3f4'}
         ios_backgroundColor="#3e3e3e"
-        onChange={onSwitch}
+        onValueChange={onSwitch}
         value={item.finished === 'finished'}
       />
     </View>
@@ -48,20 +48,21 @@ const Daily = () => {
   });
   const host = 'http://192.168.80.121:8088';
 
-  const argsFunc = function (index) {
-    return function (...args) {
-      // let finished = false;
-      console.log(index, ...args);
-      //       plan.plan_and_do[index] = finished ? '' : 'finished';
-      //       setPlan(plan);
-    };
+  const argsFunc = (index) => (finished) => {
+    plan.plan_and_do[index].finished = finished ? 'finished' : '';
+    setPlan({...plan});
   };
 
   const renderItem = ({item, index}) => (
     <Item item={item} onSwitch={argsFunc(index)} />
   );
 
+  useEffect(() => {
+    setDataStr(JSON.stringify(plan));
+  }, [plan]);
+
   const syncFromServer = () => {
+    console.log('syncing...');
     fetchApi(host, formatDate(currentDay))
       .then((response) => {
         console.log(response.status);
@@ -71,10 +72,9 @@ const Daily = () => {
         return response.json();
       })
       .then((myJson) => {
+        console.log('setPlan... with myJson');
         // plan = myJson;
         setPlan(myJson);
-        setDataStr(JSON.stringify(myJson));
-        console.log(dataStr);
       });
   };
 
@@ -121,7 +121,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 16,
     flexDirection: 'row',
-    backgroundColor: 'lightpink',
     justifyContent: 'flex-start',
     alignItems: 'center',
     flexWrap: 'wrap',
@@ -133,7 +132,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    backgroundColor: 'lightpink',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center', // not working
