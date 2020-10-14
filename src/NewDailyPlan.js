@@ -14,12 +14,16 @@ const NewDailyPlan = ({route, navigation}) => {
     alert(v);
   };
 
-  const [hourMin, setHourMin] = useState(13 * 60 + 25);
+  const [startHourMin, setStartHourMin] = useState(0);
+  const [endHourMin, setEndHourMin] = useState(0);
 
   return (
     <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
       <Text>NewDailyPlan</Text>
-      <TimePickButton time={hourMin} setDate={hey} />
+      <View style={{flexDirection: 'row'}}>
+        <TimePickButton time={startHourMin} setDate={setStartHourMin} />
+        <TimePickButton time={endHourMin} setDate={setEndHourMin} />
+      </View>
       <Button
         title="Start Time"
         onPress={() => {
