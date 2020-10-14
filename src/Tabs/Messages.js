@@ -1,5 +1,5 @@
 import {Button, Text, View} from 'react-native';
-import PagesName from '../PagesName';
+import PagesName from '../js/PagesName';
 import * as React from 'react';
 
 const Messages = ({route, navigation}) => {
