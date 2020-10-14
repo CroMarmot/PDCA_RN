@@ -5,13 +5,14 @@ import {
   View,
   FlatList,
   Text,
+  TextInput,
   Switch,
 } from 'react-native';
 import * as React from 'react';
 import {useState, useEffect} from 'react';
 import {formatDate} from '../lib';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import {Spinner} from 'native-base';
+import {Spinner, Toast, Root} from 'native-base';
 
 const DatePickButton = ({date, setDate}) => {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -67,20 +68,6 @@ const Item = ({item, onSwitch}) => {
   );
 };
 
-const fetchApi = (host, date) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, 1000);
-  }).then(() =>
-    fetch(`${host}/api/get_daily_pdca`, {
-      headers: {'Content-Type': 'application/json'},
-      method: 'POST',
-      body: JSON.stringify({date}),
-    }),
-  );
-};
-
 const initPlan = () => {
   return {
     _id: {
@@ -107,6 +94,15 @@ const Daily = () => {
     setPlan({...plan});
   };
 
+  const setCheckText = (text) => {
+    plan.check = text;
+    setPlan({...plan});
+  };
+  const setActionText = (text) => {
+    plan.action = text;
+    setPlan({...plan});
+  };
+
   const renderItem = ({item, index}) => (
     <Item item={item} onSwitch={argsFunc(index)} />
   );
@@ -128,7 +124,13 @@ const Daily = () => {
 
   const syncFromServer = () => {
     console.log('syncing...');
-    wrapLoading(() => fetchApi(host, formatDate(chooseDate)))
+    wrapLoading(() =>
+            fetch(`${host}/api/get_daily_pdca`, {
+              headers: {'Content-Type': 'application/json'},
+              method: 'POST',
+              body: JSON.stringify({date:formatDate(chooseDate)}),
+            })
+  )
       .then((response) => {
         console.log(response.status);
         if (response.status === 404) {
@@ -146,64 +148,113 @@ const Daily = () => {
       });
   };
 
+  const uploadToServer = () => {
+    // TODO check valid
+    plan.date = formatDate(chooseDate);
+    console.log('hey');
+    wrapLoading(() =>
+      fetch(`${host}/api/add_daily_pdca`, {
+        headers: {'Content-Type': 'application/json'},
+        method: 'POST',
+        body: JSON.stringify(plan),
+      }),
+    )
+      .then((response) => {
+        console.log('upload', response.status);
+        if (response.status !== 200) {
+          throw new Error(response.statusText);
+        }
+        return response.json();
+      })
+      .then((myJson) => {
+        plan._id = myJson.insertedId;
+        Toast.show({
+          text: '保存成功',
+          duration: 1000,
+        });
+      })
+      .catch((err) => {
+        Toast.show({
+          text: err,
+          duration: 1000,
+        });
+      });
+  };
+
   useEffect(syncFromServer, [chooseDate]);
 
   return (
-    <View
-      style={{
-        backgroundColor: 'lightblue',
-        position: 'relative',
-        height: '100%',
-      }}>
-      <ScrollView style={{zIndex: 0}}>
-        <View style={styles.fixToText}>
-          <View style={styles.buttonView}>
-            <Button
-              title="previous"
-              onPress={() => {
-                setChooseDate(
-                  new Date(chooseDate.getTime() - 24 * 60 * 60 * 1000),
-                );
-              }}
-            />
+    <Root>
+      <View
+        style={{
+          backgroundColor: 'lightblue',
+          position: 'relative',
+          height: '100%',
+        }}>
+        <ScrollView style={{zIndex: 0}}>
+          <View style={styles.fixToText}>
+            <View style={styles.buttonView}>
+              <Button
+                title="previous"
+                onPress={() => {
+                  setChooseDate(
+                    new Date(chooseDate.getTime() - 24 * 60 * 60 * 1000),
+                  );
+                }}
+              />
+            </View>
+            <View style={{...styles.buttonView, justifyContent: 'center'}}>
+              <DatePickButton date={chooseDate} setDate={setChooseDate} />
+            </View>
+            <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
+              <Button
+                title="next"
+                onPress={() => {
+                  setChooseDate(
+                    new Date(chooseDate.getTime() + 24 * 60 * 60 * 1000),
+                  );
+                }}
+              />
+            </View>
           </View>
-          <View style={{...styles.buttonView, justifyContent: 'center'}}>
-            <DatePickButton date={chooseDate} setDate={setChooseDate} />
+          <View style={styles.fixToText}>
+            <View style={{...styles.buttonView, justifyContent: 'flex-start'}}>
+              <Button title="upload" onPress={uploadToServer} />
+            </View>
+            <View style={{...styles.buttonView, justifyContent: 'center'}}>
+              <Button title="sync" onPress={syncFromServer} />
+            </View>
+            <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
+              <Button title="new plan" />
+            </View>
           </View>
-          <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
-            <Button
-              title="next"
-              onPress={() => {
-                setChooseDate(
-                  new Date(chooseDate.getTime() + 24 * 60 * 60 * 1000),
-                );
-              }}
-            />
+          <Separator />
+          <FlatList data={plan.plan_and_do} renderItem={renderItem} />
+          <TextInput
+            placeholder="Check"
+            multiline={true}
+            style={{borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(text) => setCheckText(text)}
+            value={plan.check}
+          />
+          <TextInput
+            placeholder="Action"
+            multiline={true}
+            style={{borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(text) => setActionText(text)}
+            value={plan.action}
+          />
+          <View>
+            <Text>{dataStr}</Text>
           </View>
-        </View>
-        <View style={styles.fixToText}>
-          <View style={{...styles.buttonView, justifyContent: 'flex-start'}}>
-            <Button title="upload" />
+        </ScrollView>
+        {loading && (
+          <View style={styles.spinnerView}>
+            <Spinner />
           </View>
-          <View style={{...styles.buttonView, justifyContent: 'center'}}>
-            <Button title="sync" onPress={syncFromServer} />
-          </View>
-          <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
-            <Button title="new plan" />
-          </View>
-        </View>
-        <Separator />
-        <FlatList data={plan.plan_and_do} renderItem={renderItem} />
-        <View>
-          <Text>{dataStr}</Text>
-        </View>
-      </ScrollView>
-      {loading && (
-        <View style={styles.spinnerView}>
-          <Spinner />
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </Root>
   );
 };
 
