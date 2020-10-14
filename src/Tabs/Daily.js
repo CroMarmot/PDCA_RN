@@ -15,6 +15,7 @@ import {DailyRow} from '../components/DailyRow';
 import {Separator} from '../components/Separator';
 import {DatePickButton} from '../components/DatePickButton';
 import {host} from '../js/config';
+import PagesName from '../js/PagesName';
 
 const initPlan = () => {
   return {
@@ -28,7 +29,7 @@ const initPlan = () => {
   };
 };
 
-const Daily = () => {
+const Daily = ({route, navigation}) => {
   const [today, setToday] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [dataStr, setDataStr] = useState('');
@@ -135,6 +136,12 @@ const Daily = () => {
 
   useEffect(syncFromServer, [chooseDate]);
 
+  const passParams = {
+    callback:(v)=>{
+      alert(v);
+    }
+  };
+
   return (
     <Root>
       <View
@@ -177,7 +184,7 @@ const Daily = () => {
               <Button title="sync" onPress={syncFromServer} />
             </View>
             <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
-              <Button title="new plan" />
+              <Button title="new plan" onPress={() => navigation.push(PagesName.NewDailyPlan, passParams)} />
             </View>
           </View>
           <Separator />
