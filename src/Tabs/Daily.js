@@ -1,7 +1,47 @@
-import {StyleSheet, Button, View, FlatList, Text, Switch} from 'react-native';
+import {
+  StyleSheet,
+  Button,
+  ScrollView,
+  View,
+  FlatList,
+  Text,
+  Switch,
+} from 'react-native';
 import * as React from 'react';
 import {useState, useEffect} from 'react';
 import {formatDate} from '../lib';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import {Spinner} from 'native-base';
+
+const DatePickButton = ({date, setDate}) => {
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
+  const showDatePicker = () => {
+    setDatePickerVisibility(true);
+  };
+
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+  };
+
+  const handleConfirm = (d) => {
+    hideDatePicker();
+    setDate(d);
+  };
+
+  return (
+    <View>
+      <Button title={formatDate(date)} onPress={showDatePicker} />
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        date={date}
+        onConfirm={handleConfirm}
+        onCancel={hideDatePicker}
+      />
+    </View>
+  );
+};
 
 const Separator = () => <View style={styles.separator} />;
 
@@ -27,17 +67,22 @@ const Item = ({item, onSwitch}) => {
   );
 };
 
-const fetchApi = (host, date) =>
-  fetch(`${host}/api/get_daily_pdca`, {
-    headers: {'Content-Type': 'application/json'},
-    method: 'POST',
-    body: JSON.stringify({date}),
-  });
+const fetchApi = (host, date) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, 1000);
+  }).then(() =>
+    fetch(`${host}/api/get_daily_pdca`, {
+      headers: {'Content-Type': 'application/json'},
+      method: 'POST',
+      body: JSON.stringify({date}),
+    }),
+  );
+};
 
-const Daily = () => {
-  const currentDay = new Date();
-  const [dataStr, setDataStr] = useState('');
-  const [plan, setPlan] = useState({
+const initPlan = () => {
+  return {
     _id: {
       $oid: '',
     },
@@ -45,7 +90,16 @@ const Daily = () => {
     plan_and_do: [], // start_time,end_time,plan,finished,reason
     check: '',
     action: '',
-  });
+  };
+};
+
+const Daily = () => {
+  const [today, setToday] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [dataStr, setDataStr] = useState('');
+  const [chooseDate, setChooseDate] = useState(today);
+  const [plan, setPlan] = useState(initPlan());
+
   const host = 'http://192.168.80.121:8088';
 
   const argsFunc = (index) => (finished) => {
@@ -57,16 +111,30 @@ const Daily = () => {
     <Item item={item} onSwitch={argsFunc(index)} />
   );
 
+  const changeDate = (date) => {
+    setChooseDate(date);
+  };
+
+  const wrapLoading = async (fn) => {
+    setLoading(true);
+    const ret = await fn();
+    setLoading(false);
+    return ret;
+  };
+
   useEffect(() => {
     setDataStr(JSON.stringify(plan));
   }, [plan]);
 
   const syncFromServer = () => {
     console.log('syncing...');
-    fetchApi(host, formatDate(currentDay))
+    wrapLoading(() => fetchApi(host, formatDate(chooseDate)))
       .then((response) => {
         console.log(response.status);
-        if (response.status !== 200) {
+        if (response.status === 404) {
+          // TODO 为空处理给服务器
+          return initPlan();
+        } else if (response.status !== 200) {
           throw new Error(response.statusText);
         }
         return response.json();
@@ -78,26 +146,63 @@ const Daily = () => {
       });
   };
 
-  useEffect(syncFromServer, []);
+  useEffect(syncFromServer, [chooseDate]);
 
   return (
-    <View>
-      <View style={styles.fixToText}>
-        <Button title="previous day" />
-        <Button title={formatDate(currentDay)} />
-        <Button title="next day" />
-      </View>
-      <Separator />
-      <View style={styles.fixToText}>
-        <Button title="upload to server" />
-        <Button title="sync from server" onPress={syncFromServer} />
-        <Button title="new plan" />
-      </View>
-      <Separator />
-      <View>
-        <Text>{dataStr}</Text>
-      </View>
-      <FlatList data={plan.plan_and_do} renderItem={renderItem} />
+    <View
+      style={{
+        backgroundColor: 'lightblue',
+        position: 'relative',
+        height: '100%',
+      }}>
+      <ScrollView style={{zIndex: 0}}>
+        <View style={styles.fixToText}>
+          <View style={styles.buttonView}>
+            <Button
+              title="previous"
+              onPress={() => {
+                setChooseDate(
+                  new Date(chooseDate.getTime() - 24 * 60 * 60 * 1000),
+                );
+              }}
+            />
+          </View>
+          <View style={{...styles.buttonView, justifyContent: 'center'}}>
+            <DatePickButton date={chooseDate} setDate={setChooseDate} />
+          </View>
+          <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
+            <Button
+              title="next"
+              onPress={() => {
+                setChooseDate(
+                  new Date(chooseDate.getTime() + 24 * 60 * 60 * 1000),
+                );
+              }}
+            />
+          </View>
+        </View>
+        <View style={styles.fixToText}>
+          <View style={{...styles.buttonView, justifyContent: 'flex-start'}}>
+            <Button title="upload" />
+          </View>
+          <View style={{...styles.buttonView, justifyContent: 'center'}}>
+            <Button title="sync" onPress={syncFromServer} />
+          </View>
+          <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
+            <Button title="new plan" />
+          </View>
+        </View>
+        <Separator />
+        <FlatList data={plan.plan_and_do} renderItem={renderItem} />
+        <View>
+          <Text>{dataStr}</Text>
+        </View>
+      </ScrollView>
+      {loading && (
+        <View style={styles.spinnerView}>
+          <Spinner />
+        </View>
+      )}
     </View>
   );
 };
@@ -110,7 +215,8 @@ const styles = StyleSheet.create({
   },
   item: {
     flexDirection: 'row',
-    backgroundColor: 'lightgrey',
+    backgroundColor: '#EEE',
+    borderRadius: 10,
     padding: 20,
     marginVertical: 8,
     marginHorizontal: 16,
@@ -138,7 +244,22 @@ const styles = StyleSheet.create({
   },
   fixToText: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    marginHorizontal: 10,
+    marginVertical: 5,
+  },
+  buttonView: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  spinnerView: {
+    zIndex: 1,
+    position: 'absolute',
+    height: '100%',
+    width: '100%',
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // 半透明
   },
   separator: {
     marginVertical: 8,
