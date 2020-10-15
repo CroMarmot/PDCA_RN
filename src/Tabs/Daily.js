@@ -66,7 +66,7 @@ const Daily = ({route, navigation}) => {
       );
     });
     if (del) {
-      plan.plan_and_do.splice(index, index + 1);
+      plan.plan_and_do.splice(index, 1);
       setPlan({...plan});
     }
   };
