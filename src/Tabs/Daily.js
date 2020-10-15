@@ -3,14 +3,14 @@ import {
   FlatList,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
 import {formatDate} from '../js/lib';
-import {Root, Spinner, Toast} from 'native-base';
+import {Root, Spinner, Toast, Textarea, Content, Form} from 'native-base';
 import {DailyRow} from '../components/DailyRow';
 import {Separator} from '../components/Separator';
 import {DatePickButton} from '../components/DatePickButton';
@@ -32,11 +32,10 @@ const initPlan = () => {
 const Daily = ({route, navigation}) => {
   const [today, setToday] = useState(new Date());
   const [loading, setLoading] = useState(false);
-  const [dataStr, setDataStr] = useState('');
   const [chooseDate, setChooseDate] = useState(today);
   const [plan, setPlan] = useState(initPlan());
 
-  const argsFunc = (index) => (finished) => {
+  const switchFinished = (index) => (finished) => {
     plan.plan_and_do[index].finished = finished ? 'finished' : '';
     setPlan({...plan});
   };
@@ -50,19 +49,38 @@ const Daily = ({route, navigation}) => {
     setPlan({...plan});
   };
 
+  const delAlert = (index) => async () => {
+    const del = await new Promise((resolve) => {
+      Alert.alert(
+        'Detele Row',
+        `Delete the ${index}th row?`,
+        [
+          {
+            text: 'Cancel',
+            onPress: () => resolve(false),
+            style: 'cancel',
+          },
+          {text: 'Delete', onPress: () => resolve(true)},
+        ],
+        {cancelable: false},
+      );
+    });
+    if (del) {
+      plan.plan_and_do.splice(index, index + 1);
+      setPlan({...plan});
+    }
+  };
+
   const renderItem = ({item, index}) => (
     <DailyRow
       item={item}
-      onSwitch={argsFunc(index)}
+      onSwitch={switchFinished(index)}
       time={`${item.start_time} - ${item.end_time}`}
       text={item.plan}
       enable={item.finished === 'finished'}
+      onPress={delAlert(index)}
     />
   );
-
-  const changeDate = (date) => {
-    setChooseDate(date);
-  };
 
   const wrapLoading = async (fn) => {
     setLoading(true);
@@ -70,10 +88,6 @@ const Daily = ({route, navigation}) => {
     setLoading(false);
     return ret;
   };
-
-  useEffect(() => {
-    setDataStr(JSON.stringify(plan));
-  }, [plan]);
 
   const syncFromServer = () => {
     console.log('syncing...');
@@ -136,12 +150,6 @@ const Daily = ({route, navigation}) => {
 
   useEffect(syncFromServer, [chooseDate]);
 
-  const passParams = {
-    callback:(v)=>{
-      alert(v);
-    }
-  };
-
   return (
     <Root>
       <View
@@ -152,7 +160,7 @@ const Daily = ({route, navigation}) => {
         }}>
         <ScrollView style={{zIndex: 0}}>
           <View style={styles.fixToText}>
-            <View style={styles.buttonView}>
+            <View style={{...styles.buttonView, justifyContent: 'flex-start'}}>
               <Button
                 title="previous"
                 onPress={() => {
@@ -184,28 +192,54 @@ const Daily = ({route, navigation}) => {
               <Button title="sync" onPress={syncFromServer} />
             </View>
             <View style={{...styles.buttonView, justifyContent: 'flex-end'}}>
-              <Button title="new plan" onPress={() => navigation.push(PagesName.NewDailyPlan, passParams)} />
+              <Button
+                title="new plan"
+                onPress={() =>
+                  navigation.push(PagesName.NewDailyPlan, {
+                    callback: (item) => {
+                      plan.plan_and_do.push(item);
+                      plan.plan_and_do.sort((item1, item2) => {
+                        // 草 格式化工具把括号吃了
+                        return item1.start_time === item2.start_time
+                          ? item1.end_time < item2.end_time
+                            ? -1
+                            : 1
+                          : item1.start_time < item2.start_time
+                          ? -1
+                          : 1;
+                      });
+                      setPlan({...plan});
+                    },
+                  })
+                }
+              />
             </View>
           </View>
           <Separator />
           <FlatList data={plan.plan_and_do} renderItem={renderItem} />
-          <TextInput
-            placeholder="Check"
-            multiline={true}
-            style={{borderColor: 'gray', borderWidth: 1}}
-            onChangeText={(text) => setCheckText(text)}
-            value={plan.check}
-          />
-          <TextInput
-            placeholder="Action"
-            multiline={true}
-            style={{borderColor: 'gray', borderWidth: 1}}
-            onChangeText={(text) => setActionText(text)}
-            value={plan.action}
-          />
-          <View>
-            <Text>{dataStr}</Text>
-          </View>
+          <Content padder>
+            <Form>
+              <Textarea
+                rowSpan={5}
+                bordered
+                placeholder="Check"
+                style={{borderColor: 'gray', borderWidth: 1}}
+                onChangeText={(text) => setCheckText(text)}
+                value={plan.check}
+              />
+            </Form>
+            <Form>
+              <Textarea
+                rowSpan={5}
+                bordered
+                placeholder="Action"
+                style={{borderColor: 'gray', borderWidth: 1}}
+                onChangeText={(text) => setActionText(text)}
+                value={plan.action}
+              />
+            </Form>
+          </Content>
+          <TextInput />
         </ScrollView>
         {loading && (
           <View style={styles.spinnerView}>

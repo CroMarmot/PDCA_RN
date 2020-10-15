@@ -6,9 +6,8 @@ import Messages from './Tabs/Messages';
 const Tab = createBottomTabNavigator();
 
 const HomeScreen = ({route, navigation}) => {
-  const passedParam = {otherParam: {text: 'anything you want here'}};
   if (route.params) {
-    alert(route.params.post);
+    alert(JSON.stringify(route.params));
   }
   return (
     <Tab.Navigator>

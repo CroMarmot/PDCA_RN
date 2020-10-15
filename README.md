@@ -2,9 +2,14 @@
 
  - [x] sync from server
  - [x] upload to server
- - [ ] new plan
- - [x] select date
- - [x] previous/next date
+ - [x] pdca
+    - [x] new plan/delete plan
+    - [x] do: finished/unfinished
+    - [x] check
+    - [x] action
+ - [x] date
+    - [x] select date
+    - [x] previous/next date
 
 # TODO
 
@@ -12,6 +17,7 @@
  - [ ] ts
  - [ ] ui
  - [ ] remove hard code
+ - [ ] month/year plan
 
 # relative
 

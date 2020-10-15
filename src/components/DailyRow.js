@@ -1,9 +1,9 @@
-import {StyleSheet, Switch, Text, View} from 'react-native';
+import {StyleSheet, Switch, Text, View, TouchableOpacity} from 'react-native';
 import * as React from 'react';
 
-export const DailyRow = ({item, time, text, enable, onSwitch}) => {
+export const DailyRow = ({item, time, text, enable, onSwitch, onPress}) => {
   return (
-    <View style={styles.item}>
+    <TouchableOpacity style={styles.item} onPress={onPress}>
       <View style={styles.title}>
         <Text>{time}</Text>
       </View>
@@ -17,7 +17,7 @@ export const DailyRow = ({item, time, text, enable, onSwitch}) => {
         onValueChange={onSwitch}
         value={enable}
       />
-    </View>
+    </TouchableOpacity>
   );
 };
 
